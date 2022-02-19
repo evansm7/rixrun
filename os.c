@@ -122,7 +122,7 @@ static int      rix_to_host_openflags(int f)
 
 static unsigned int     host_to_rix_mode(unsigned int im)
 {
-        unsigned int om;
+        unsigned int om = im;
 
         // S_IFMT is in the same place, and values the same.
         return om;
