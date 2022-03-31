@@ -92,6 +92,9 @@
 static  char    *path_to_rixrun;
 static  int     sc_trace = 0;
 
+static ARMul_State state_vfork_backup;
+static int vfork_ret_status = 0;
+
 ////////////////////////////////////////////////////////////////////////////////
 // Mappings of stuff
 
@@ -258,6 +261,26 @@ void    rix_sc_unlink(ARMul_State *state)
                 SC_RET_VAL("%d", r);
 }
 
+void    rix_sc_waitpid(ARMul_State *state)
+{
+        SC_3ARG;
+        SYSTRACE("waitpid(%d, 0x%x, 0x%x)", a0, a1, a2);
+        int r = -1;
+
+        if (a0 < 1 || a0 == 1234) {       /* magic vfork PID */
+                if (a1) {
+                        write32(a1, vfork_ret_status);
+                }
+                // Fake success
+                r = 1234;
+        }
+
+        if (r < 0)
+                SC_RET_ERROR(host_to_rix_errno(errno));
+        else
+                SC_RET_VAL("%d", r);
+}
+
 void    rix_sc_sbreak(ARMul_State *state)
 {
         static addr_t current_sbrk = 0;
@@ -312,28 +335,38 @@ void    rix_sc_access(ARMul_State *state)
                 SC_RET_VAL("%d", r);
 }
 
+int     rix_execve_handler(ARMul_State *state, uint32_t a1, uint32_t a2);
+
 void    rix_sc_execve(ARMul_State *state)
 {
         SC_3ARG;
         SYSTRACE("execve(\"%s\", %08x, %08x)\n", mem_base + a0, a1, a2);
-        // Dump args/env:
-        addr_t p = read32(a1);
-        int i = 0;
-        while (p) {
-                printf("Arg[%d]@%08x=%08x='%s'\n", i++, a1, p, mem_base + p);
-                a1 += 4;
-                p = read32(a1);
-        }
 
-        p = read32(a2);
-        i = 0;
-        while (p) {
-                printf("Env[%d]@%08x=%08x='%s'\n", i++, a2, p, mem_base + p);
-                a2 += 4;
+        int r = rix_execve_handler(state, a1, a2);
+
+        if (r) {
+                // Dump args/env:
+                addr_t p = read32(a1);
+
+                int i = 0;
+                while (p) {
+                        printf("Arg[%d]@%08x=%08x='%s'\n", i++, a1, p, mem_base + p);
+                        a1 += 4;
+                        p = read32(a1);
+                }
                 p = read32(a2);
+                i = 0;
+                while (p) {
+                        printf("Env[%d]@%08x=%08x='%s'\n", i++, a2, p, mem_base + p);
+                        a2 += 4;
+                        p = read32(a2);
+                }
+                fprintf(stderr, "rix_sc_execve: not implemented!\n");
+                SC_RET_ERROR(ENOENT);
         }
-        fprintf(stderr, "rix_sc_execve: not implemented!\n");
-        SC_RET_ERROR(ENOENT);
+        /* Otherwise, the handler has munged CPU state to "return in the parent"
+         * with a PID.
+         */
 }
 
 void    rix_sc_fstat(ARMul_State *state)
@@ -354,6 +387,25 @@ void    rix_sc_getpagesize(ARMul_State *state)
 {
         SYSTRACE("getpagesize()");
         SC_RET_VAL("%d", 32768);
+}
+
+void    rix_sc_vfork(ARMul_State *state)
+{
+        /* Here lies gross hack #28.  This "implementation" supports the
+         * pattern of some RISCiX utils using system(), i.e. invoking a
+         * UNIX command and waiting for it to complete.
+         *
+         * We stash CPU thread state here, and return as though we're
+         * the child process (without making a new process).  execve
+         * does the command, and when complete that syscall restores
+         * the stashed state fixed up as though returning in the parent
+         * (returns a PID).  The PID is fake, and wait() just consumes
+         * it.  This is all horribly broken except in the one case I
+         * care about when using unsqueeze/cc/etc.
+         */
+        SYSTRACE("vfork()");
+        memcpy(&state_vfork_backup, state, sizeof(*state));
+        SC_RET_VAL("%d", 0);
 }
 
 void    rix_sc_getdtablesize(ARMul_State *state)
@@ -461,7 +513,9 @@ unsigned int    ARMul_OSHandleSWI(ARMul_State *state, ARMword number)
         case 8:         /* creat        */      rix_sc_creat(state);            break;
         case 9:         /* link         */      rix_sc_link(state);             break;
         case 10:        /* unlink       */      rix_sc_unlink(state);           break;
+        case 11:        /* waitpid      */      rix_sc_waitpid(state);          break;
         case 15:        /* chmod        */      rix_sc_NOP(state, "chmod");     break;
+        case 16:        /* chown        */      rix_sc_NOP(state, "chown");     break;
         case 17:        /* sbreak       */      rix_sc_sbreak(state);           break;
         case 19:        /* lseek        */      rix_sc_lseek(state);            break;
         case 20:        /* getpid       */      rix_sc_getpid(state);           break;
@@ -472,7 +526,7 @@ unsigned int    ARMul_OSHandleSWI(ARMul_State *state, ARMword number)
         case 60:        /* umask        */      rix_sc_NOP(state, "umask");     break;
         case 62:        /* fstat        */      rix_sc_fstat(state);            break;
         case 64:        /* getpagesize  */      rix_sc_getpagesize(state);      break;
-        case 66:        /* vfork        */      rix_sc_NOP(state, "vfork");     break;
+        case 66:        /* vfork        */      rix_sc_vfork(state);            break;
         case 89:        /* getdtablesize*/      rix_sc_getdtablesize(state);    break;
         case 108:       /* sigvec       */      rix_sc_NOP(state, "sigvec");    break;
         case 109:       /* sigblock     */      rix_sc_NOP(state, "sigblock");  break;
@@ -513,4 +567,63 @@ unsigned int    ARMul_OSException(ARMul_State * state, ARMword vector,
         }
 
         return 1; // Don't do exception vectors, etc.
+}
+
+static char cmd_buff[4096];
+
+int     rix_execve_handler(ARMul_State *state, uint32_t a1, uint32_t a2)
+{
+        const int args_max = 16;
+        char *args[args_max];
+
+        /* Try to spot certain common patterns of system() invocations,
+         * and deal with those alone.
+         *
+         * a1->argv, a2->envv
+         * First, convert args:
+         */
+        int i = 0;
+        addr_t arg = read32(a1);
+        do {
+                if (arg != 0) {
+                        args[i] = mem_base + arg;
+                } else {
+                        args[i] = 0;
+                        break;
+                }
+                i++;
+                a1 += 4;
+                arg = read32(a1);
+        } while(i < args_max);
+        if (i == args_max)
+                return 1;
+
+        /* OK, try to match common 'executions' via system(). */
+        if (!strcmp(args[0], "sh") && !strcmp(args[1], "-c")) {
+                if (!strncmp(args[2], "/sbin/cp ", 9)) {
+                        char *cp_args = (char *)(args[2] + 9);
+                        snprintf(cmd_buff, 4096, "cp %s", cp_args);
+                        vfork_ret_status = system(cmd_buff);
+                        SDBG("execve handler: %s (-> %d)\n", cmd_buff, vfork_ret_status);
+                        goto handled_return;
+                }
+
+                /* FIXME:
+                 * Extend this with the ability to re-invoke rixrun with commands
+                 * relative to RIX_ROOT!
+                 */
+        }
+
+fail:
+        return 1;       /* Unhandled */
+
+handled_return:
+        // Assumes preceeded by one vfork!!!1
+        memcpy(state, &state_vfork_backup, sizeof(*state));
+        /* Returns the process to the state at the vfork; now make it look like
+         * the child was exec'd, and was process 1234.  It's complete of course,
+         * which we'll say via wait() if asked.
+         */
+        SC_RET_VAL("%d", 1234);
+        return 0;       /* Unhandled */
 }
