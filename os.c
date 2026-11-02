@@ -141,10 +141,6 @@ static void     host_to_rix_stat(struct rix_stat *osb, struct stat *isb)
         osb->st_uid = htole16(isb->st_uid);      // XXX truncates!
         osb->st_gid = htole16(isb->st_gid);
         osb->st_rdev = htole16(0x0101);
-        if (isb->st_size > 0xffffffff) {
-                fprintf(stderr, "rixrun: stat size %ld can't be represented, truncating\n",
-                        (long)isb->st_size);
-        }
         osb->st_size = htole32(isb->st_size);
 #ifdef __APPLE__
         osb->st_a_time = htole32(isb->st_atimespec.tv_sec);
@@ -380,6 +376,9 @@ void    rix_sc_fstat(ARMul_State *state)
         int r = fstat(a0, &sb);
         if (r < 0) {
                 SC_RET_ERROR(host_to_rix_errno(errno));
+        } else if (sb.st_size > INT32_MAX) {
+                // The guest's signed 32-bit off_t cannot represent this size.
+                SC_RET_ERROR(EFBIG);
         } else {
                 host_to_rix_stat((struct rix_stat *)(mem_base + a1), &sb);
                 SC_RET_VAL("%d", r);
