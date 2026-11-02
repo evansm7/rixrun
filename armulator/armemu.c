@@ -3778,10 +3778,10 @@ Multiply64 (ARMul_State * state, ARMword instr, int msigned, int scc)
 
 	  sign = (Rm ^ Rs) & 0x80000000;
 
-	  if (((signed long) Rm) < 0)
+	  if (((int32_t) Rm) < 0)
 	    Rm = -Rm;
 
-	  if (((signed long) Rs) < 0)
+	  if (((int32_t) Rs) < 0)
 	    Rs = -Rs;
 	}
 
