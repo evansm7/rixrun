@@ -16,6 +16,8 @@
     along with this program; if not, write to the Free Software
     Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA. */
 
+#include <stdint.h>
+
 #include "armdefs.h"
 #include "armemu.h"
 #include "armos.h"
@@ -2925,9 +2927,9 @@ GetDPRegRHS (ARMul_State * state, ARMword instr)
 	  if (shamt == 0)
 	    return (base);
 	  else if (shamt >= 32)
-	    return ((ARMword) ((long int) base >> 31L));
+	    return ((ARMword) ((int32_t) base >> 31L));
 	  else
-	    return ((ARMword) ((long int) base >> (int) shamt));
+	    return ((ARMword) ((int32_t) base >> (int) shamt));
 	case ROR:
 	  shamt &= 0x1f;
 	  if (shamt == 0)
@@ -2956,9 +2958,9 @@ GetDPRegRHS (ARMul_State * state, ARMword instr)
 	    return (base >> shamt);
 	case ASR:
 	  if (shamt == 0)
-	    return ((ARMword) ((long int) base >> 31L));
+	    return ((ARMword) ((int32_t) base >> 31L));
 	  else
-	    return ((ARMword) ((long int) base >> (int) shamt));
+	    return ((ARMword) ((int32_t) base >> (int) shamt));
 	case ROR:
 	  if (shamt == 0)	/* its an RRX */
 	    return ((base >> 1) | (CFLAG << 31));
@@ -3038,12 +3040,12 @@ GetDPSRegRHS (ARMul_State * state, ARMword instr)
 	  else if (shamt >= 32)
 	    {
 	      ASSIGNC (base >> 31L);
-	      return ((ARMword) ((long int) base >> 31L));
+	      return ((ARMword) ((int32_t) base >> 31L));
 	    }
 	  else
 	    {
-	      ASSIGNC ((ARMword) ((long int) base >> (int) (shamt - 1)) & 1);
-	      return ((ARMword) ((long int) base >> (int) shamt));
+	      ASSIGNC ((ARMword) ((int32_t) base >> (int) (shamt - 1)) & 1);
+	      return ((ARMword) ((int32_t) base >> (int) shamt));
 	    }
 	case ROR:
 	  if (shamt == 0)
@@ -3090,12 +3092,12 @@ GetDPSRegRHS (ARMul_State * state, ARMword instr)
 	  if (shamt == 0)
 	    {
 	      ASSIGNC (base >> 31L);
-	      return ((ARMword) ((long int) base >> 31L));
+	      return ((ARMword) ((int32_t) base >> 31L));
 	    }
 	  else
 	    {
-	      ASSIGNC ((ARMword) ((long int) base >> (int) (shamt - 1)) & 1);
-	      return ((ARMword) ((long int) base >> (int) shamt));
+	      ASSIGNC ((ARMword) ((int32_t) base >> (int) (shamt - 1)) & 1);
+	      return ((ARMword) ((int32_t) base >> (int) shamt));
 	    }
 	case ROR:
 	  if (shamt == 0)
@@ -3186,9 +3188,9 @@ GetLSRegRHS (ARMul_State * state, ARMword instr)
 	return (base >> shamt);
     case ASR:
       if (shamt == 0)
-	return ((ARMword) ((long int) base >> 31L));
+	return ((ARMword) ((int32_t) base >> 31L));
       else
-	return ((ARMword) ((long int) base >> (int) shamt));
+	return ((ARMword) ((int32_t) base >> (int) shamt));
     case ROR:
       if (shamt == 0)		/* its an RRX */
 	return ((base >> 1) | (CFLAG << 31));
