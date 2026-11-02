@@ -3075,6 +3075,8 @@ GetDPSRegRHS (ARMul_State * state, ARMword instr)
       switch ((int) BITS (5, 6))
 	{
 	case LSL:
+	  if (shamt == 0)
+	    return (base);
 	  ASSIGNC ((base >> (32 - shamt)) & 1);
 	  return (base << shamt);
 	case LSR:
