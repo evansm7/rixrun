@@ -295,11 +295,14 @@ void    rix_sc_lseek(ARMul_State *state)
 {
         SC_3ARG;
         SYSTRACE("lseek(%d, %08x, %d)", a0, a1, a2);
-        int r = lseek(a0, a1, a2);
+        off_t r = lseek(a0, (rix_off_t)a1, a2);
         if (r < 0)
                 SC_RET_ERROR(host_to_rix_errno(errno));
+        else if (r > INT32_MAX)
+                // The guest's signed 32-bit off_t cannot represent this position.
+                SC_RET_ERROR(EFBIG);
         else
-                SC_RET_VAL("%d", r);
+                SC_RET_VAL("%d", (rix_off_t)r);
 }
 
 void    rix_sc_getpid(ARMul_State *state)
@@ -447,7 +450,7 @@ void    rix_sc_ftruncate(ARMul_State *state)
         SC_2ARG;
         SYSTRACE("ftruncate(%d, %08x)", a0, a1);
 
-        int r = ftruncate(a0, a1);
+        int r = ftruncate(a0, (rix_off_t)a1);
 
         if (r < 0)
                 SC_RET_ERROR(host_to_rix_errno(errno));
