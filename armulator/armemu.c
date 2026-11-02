@@ -3593,6 +3593,8 @@ StoreMult (ARMul_State * state, ARMword instr,
     {
       BUSUSEDINCPCN;		/* N-cycle, increment the PC and update the NextInstr state */
     }
+#else
+  BUSUSEDINCPCN;                 /* STM saves the instruction address plus 12 in r15. */
 #endif
 #ifndef MODE32
   if (VECTORACCESS (address) || ADDREXCEPT (address))
