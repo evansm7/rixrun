@@ -21,7 +21,7 @@
 #include <stdlib.h>
 #include "utils.h"
 
-void    panic(char *format, ...)
+void    panic(const char *format, ...)
 {
         va_list ap;
         va_start(ap, format);
