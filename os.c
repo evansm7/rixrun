@@ -539,7 +539,8 @@ unsigned int    ARMul_OSHandleSWI(ARMul_State *state, ARMword number)
         case 130:       /* ftruncate    */      rix_sc_ftruncate(state);        break;
 
         default:
-                panic("*** Unhandled syscall %d at PC %08lx\n", scnum, ARMul_GetPC(state));
+                panic("*** Unhandled syscall %u at PC %08" PRIx32 "\n",
+                      scnum, ARMul_GetPC(state));
         }
         return 1;
 }
@@ -564,7 +565,7 @@ unsigned int    ARMul_OSException(ARMul_State * state, ARMword vector,
                 }
                 return 0;       // Go to exception vector
         } else {
-                panic("Got exception (vector 0x%lx), PC %08x\n",
+                panic("Got exception (vector 0x%" PRIx32 "), PC %08" PRIx32 "\n",
                       vector, pc);
         }
 

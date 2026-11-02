@@ -187,7 +187,7 @@ static int get_hdr(char *path, char *newpath, struct exec_hdr *hdr, int rel_path
                 perror("Can't read lib header");
                 goto err;
         } else if (r < sizeof(struct exec_hdr)) {
-                DBG_ZM("BINFMT_ZMAGIC: Header read too short, %d vs %ld",
+                DBG_ZM("BINFMT_ZMAGIC: Header read too short, %d vs %zu",
                        r, sizeof(struct exec_hdr));
                 r = -1;
                 goto err;
